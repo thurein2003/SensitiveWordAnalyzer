@@ -49,5 +49,5 @@ bash
 - For a file, enter the file path (e.g., example_file.txt).
 - For a directory, enter the directory path (e.g., ./malware_samples).
 
-  ##View the results in AnalyzedFile.txt.
+  ## View the results in AnalyzedFile.txt.
 
