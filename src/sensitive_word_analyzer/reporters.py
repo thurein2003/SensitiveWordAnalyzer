@@ -33,10 +33,14 @@ def render_text(report: ScanReport) -> str:
         "",
         (
             f"Summary: {report.scanned_count} scanned, {report.skipped_count} skipped, "
-            f"{report.error_count} errors, {report.finding_count} findings, "
+            f"{report.error_count} errors, {len(report.warnings)} warnings, "
+            f"{report.finding_count} findings, "
             f"highest severity: {highest.value if highest else 'none'}"
         ),
     ]
+
+    for warning in report.warnings:
+        lines.append(f"WARNING: {_safe(warning)}")
 
     for file in report.files:
         lines.extend(("", _safe(file.path), "-" * min(80, max(8, len(file.path)))))

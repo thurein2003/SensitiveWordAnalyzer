@@ -56,6 +56,7 @@ def test_text_report_handles_clean_skipped_and_error_files() -> None:
         target="unsafe\x1btarget",
         started_at="now",
         duration_seconds=0,
+        warnings=["limited\x00scan"],
         files=[
             FileReport(path="clean", size=0, file_type="text", entropy=0.0),
             FileReport(path="large", size=100, file_type="unknown", skipped_reason="limit"),
@@ -69,3 +70,4 @@ def test_text_report_handles_clean_skipped_and_error_files() -> None:
     assert "SKIPPED: limit" in rendered
     assert "ERROR: permission\\x0adenied" in rendered
     assert "unsafe\\x1btarget" in rendered
+    assert "WARNING: limited\\x00scan" in rendered

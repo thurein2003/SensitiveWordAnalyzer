@@ -100,6 +100,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="maximum findings retained per file (default: 200)",
     )
     parser.add_argument(
+        "--max-files",
+        type=_positive_int,
+        default=10_000,
+        metavar="N",
+        help="maximum files discovered in one scan (default: 10000)",
+    )
+    parser.add_argument(
+        "--max-directories",
+        type=_positive_int,
+        default=10_000,
+        metavar="N",
+        help="maximum directories traversed in one scan (default: 10000)",
+    )
+    parser.add_argument(
         "--workers",
         type=_positive_int,
         default=4,
@@ -149,6 +163,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             follow_symlinks=args.follow_symlinks,
             max_file_size=args.max_file_size,
             max_findings_per_file=args.max_findings,
+            max_files=args.max_files,
+            max_directories=args.max_directories,
             workers=args.workers,
             minimum_severity=Severity.parse(args.min_severity),
         )
@@ -158,7 +174,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"swa: error: {exc}", file=sys.stderr)
         return EXIT_ERROR
 
-    if report.error_count:
+    if report.error_count or report.warnings:
         return EXIT_ERROR
     if _threshold_reached(report.highest_severity, args.fail_on):
         return EXIT_FINDINGS

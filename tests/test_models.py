@@ -29,6 +29,7 @@ def test_scan_report_summarizes_results() -> None:
         target="/tmp/sample",
         started_at="2026-01-01T00:00:00+00:00",
         duration_seconds=0.1,
+        warnings=["discovery limit reached"],
         files=[
             FileReport(path="clean", size=1, file_type="text"),
             FileReport(path="finding", size=2, file_type="text", findings=[finding]),
@@ -43,6 +44,7 @@ def test_scan_report_summarizes_results() -> None:
     assert report.finding_count == 1
     assert report.highest_severity is Severity.HIGH
     assert report.to_dict()["summary"]["files_discovered"] == 4
+    assert report.to_dict()["summary"]["warnings"] == 1
 
 
 def test_empty_report_has_no_highest_severity() -> None:

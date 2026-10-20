@@ -7,13 +7,14 @@ import ipaddress
 import math
 import os
 import re
+import stat
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 from urllib.parse import urlsplit
 
 from .models import FileReport, Finding, ScanReport, Severity
@@ -102,6 +103,8 @@ class ScanOptions:
     max_file_size: int = 10 * 1024 * 1024
     max_findings_per_file: int = 200
     max_strings_bytes: int = 2 * 1024 * 1024
+    max_files: int = 10_000
+    max_directories: int = 10_000
     workers: int = 4
     minimum_severity: Severity = Severity.INFO
 
@@ -112,8 +115,18 @@ class ScanOptions:
             raise ValueError("max_findings_per_file must be positive")
         if self.max_strings_bytes < 1:
             raise ValueError("max_strings_bytes must be positive")
+        if self.max_files < 1:
+            raise ValueError("max_files must be positive")
+        if self.max_directories < 1:
+            raise ValueError("max_directories must be positive")
         if self.workers < 1:
             raise ValueError("workers must be positive")
+
+
+@dataclass
+class DiscoveryResult:
+    files: List[Path]
+    warnings: List[str]
 
 
 class Scanner:
@@ -134,7 +147,8 @@ class Scanner:
 
         started_at = datetime.now(timezone.utc).isoformat()
         start = time.monotonic()
-        files = sorted(self._discover(target), key=lambda path: str(path).lower())
+        discovery = self._discover(target)
+        files = sorted(discovery.files, key=lambda path: str(path).lower())
 
         if len(files) == 1:
             reports = [self._scan_file(files[0])]
@@ -147,46 +161,64 @@ class Scanner:
             started_at=started_at,
             duration_seconds=round(time.monotonic() - start, 6),
             files=reports,
+            warnings=discovery.warnings,
         )
 
-    def _discover(self, target: Path) -> Iterable[Path]:
+    def _discover(self, target: Path) -> DiscoveryResult:
         if target.is_symlink() and not self.options.follow_symlinks:
-            yield target
-            return
+            return DiscoveryResult(files=[target], warnings=[])
         if target.is_file():
-            yield target
-            return
+            return DiscoveryResult(files=[target], warnings=[])
 
         stack = [target]
         visited: Set[Tuple[int, int]] = set()
+        files: List[Path] = []
+        warnings: List[str] = []
+        directories_seen = 0
         while stack:
             directory = stack.pop()
+            directories_seen += 1
+            if directories_seen > self.options.max_directories:
+                limit = self.options.max_directories
+                warnings.append(f"directory discovery stopped at the {limit}-directory limit")
+                break
             try:
-                stat = os.stat(directory, follow_symlinks=self.options.follow_symlinks)
-                identity = (stat.st_dev, stat.st_ino)
+                directory_stat = os.stat(directory, follow_symlinks=self.options.follow_symlinks)
+                identity = (directory_stat.st_dev, directory_stat.st_ino)
                 if identity in visited:
                     continue
                 visited.add(identity)
-                entries = sorted(directory.iterdir(), key=lambda path: path.name.lower())
-            except OSError:
+                entries = os.scandir(directory)
+            except OSError as exc:
+                warnings.append(f"could not enumerate {directory}: {type(exc).__name__}: {exc}")
                 continue
 
             child_directories: List[Path] = []
-            for entry in entries:
-                if entry.name == ".git":
-                    continue
-                if not self.options.include_hidden and entry.name.startswith("."):
-                    continue
-                if entry.is_symlink() and not self.options.follow_symlinks:
-                    continue
-                try:
-                    if entry.is_file():
-                        yield entry
-                    elif entry.is_dir() and self.options.recursive:
-                        child_directories.append(entry)
-                except OSError:
-                    continue
+            with entries:
+                for entry in entries:
+                    if entry.name == ".git":
+                        continue
+                    if not self.options.include_hidden and entry.name.startswith("."):
+                        continue
+                    try:
+                        if entry.is_symlink() and not self.options.follow_symlinks:
+                            continue
+                        if entry.is_file(follow_symlinks=self.options.follow_symlinks):
+                            if len(files) >= self.options.max_files:
+                                limit = self.options.max_files
+                                warnings.append(f"file discovery stopped at the {limit}-file limit")
+                                return DiscoveryResult(files=files, warnings=warnings)
+                            files.append(Path(entry.path))
+                        elif self.options.recursive and entry.is_dir(
+                            follow_symlinks=self.options.follow_symlinks
+                        ):
+                            child_directories.append(Path(entry.path))
+                    except OSError as exc:
+                        warnings.append(
+                            f"could not inspect {entry.path}: {type(exc).__name__}: {exc}"
+                        )
             stack.extend(reversed(child_directories))
+        return DiscoveryResult(files=files, warnings=warnings)
 
     def _scan_file(self, path: Path) -> FileReport:
         try:
@@ -198,25 +230,15 @@ class Scanner:
                     skipped_reason="symbolic links are disabled",
                 )
 
-            size = path.stat().st_size
-            if size > self.options.max_file_size:
+            size, data, skipped_reason = self._read_file(path)
+            if skipped_reason:
                 return FileReport(
                     path=str(path),
                     size=size,
                     file_type="unknown",
-                    skipped_reason=(
-                        f"file exceeds the {self.options.max_file_size}-byte size limit"
-                    ),
+                    skipped_reason=skipped_reason,
                 )
-
-            data = path.read_bytes()
-            if len(data) > self.options.max_file_size:
-                return FileReport(
-                    path=str(path),
-                    size=len(data),
-                    file_type="unknown",
-                    skipped_reason="file grew beyond the configured size limit while reading",
-                )
+            assert data is not None
 
             file_type, segments = self._extract_text(data)
             findings = self._match_rules(segments)
@@ -238,11 +260,49 @@ class Scanner:
                 error=f"{type(exc).__name__}: {exc}",
             )
 
+    def _read_file(self, path: Path) -> Tuple[int, Optional[bytes], Optional[str]]:
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NONBLOCK", 0)
+        no_follow = getattr(os, "O_NOFOLLOW", 0)
+        if not self.options.follow_symlinks:
+            flags |= no_follow
+
+        with os.fdopen(os.open(path, flags), "rb") as stream:
+            opened = os.fstat(stream.fileno())
+            if not stat.S_ISREG(opened.st_mode):
+                return opened.st_size, None, "path is not a regular file"
+            if opened.st_size > self.options.max_file_size:
+                return (
+                    opened.st_size,
+                    None,
+                    f"file exceeds the {self.options.max_file_size}-byte size limit",
+                )
+
+            if not self.options.follow_symlinks and not no_follow:
+                current = os.lstat(path)
+                if stat.S_ISLNK(current.st_mode) or (
+                    current.st_dev,
+                    current.st_ino,
+                ) != (opened.st_dev, opened.st_ino):
+                    raise OSError("path changed during the no-follow safety check")
+
+            data = stream.read(self.options.max_file_size + 1)
+            if len(data) > self.options.max_file_size:
+                return (
+                    len(data),
+                    None,
+                    "file grew beyond the configured size limit while reading",
+                )
+            return len(data), data, None
+
     @staticmethod
     def _hashes(data: bytes) -> Dict[str, str]:
         return {
-            "md5": hashlib.md5(data).hexdigest(),  # nosec: useful malware identifier
-            "sha1": hashlib.sha1(data).hexdigest(),  # nosec: useful malware identifier
+            "md5": hashlib.md5(  # nosec: useful malware identifier
+                data, usedforsecurity=False
+            ).hexdigest(),
+            "sha1": hashlib.sha1(  # nosec: useful malware identifier
+                data, usedforsecurity=False
+            ).hexdigest(),
             "sha256": hashlib.sha256(data).hexdigest(),
         }
 

@@ -71,6 +71,7 @@ class ScanReport:
     started_at: str
     duration_seconds: float
     files: List[FileReport] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
 
     @property
     def finding_count(self) -> int:
@@ -106,8 +107,10 @@ class ScanReport:
                 "files_scanned": self.scanned_count,
                 "files_skipped": self.skipped_count,
                 "errors": self.error_count,
+                "warnings": len(self.warnings),
                 "findings": self.finding_count,
                 "highest_severity": highest.value if highest else None,
             },
+            "warnings": self.warnings,
             "files": [file.to_dict() for file in self.files],
         }

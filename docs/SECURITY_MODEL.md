@@ -8,8 +8,10 @@ Sensitive Word Analyzer inspects potentially untrusted files while minimizing si
 
 - Target content is read as bytes and is never executed, imported, evaluated, or written back.
 - File reads are rejected above the configured size limit and checked again after reading.
+- Files are opened through descriptors, regular-file status is verified, reads are bounded to `limit + 1` bytes, and supported platforms enforce no-follow semantics at open time.
 - Binary string extraction is bounded independently from the file-size limit.
 - Findings retained per file are capped.
+- File and directory discovery are capped; hitting either cap marks the scan incomplete and returns operational exit code `2`.
 - Hidden paths and symbolic links are excluded by default.
 - Opt-in symlink traversal tracks device and inode identities to prevent directory cycles.
 - `.git` directories are always excluded to avoid scanning repository internals and object databases.
@@ -19,11 +21,11 @@ Sensitive Word Analyzer inspects potentially untrusted files while minimizing si
 
 ## Trust boundaries
 
-Targets and custom rule packs are untrusted. CLI arguments and the selected output directory are controlled by the operator. The local Python interpreter, operating system, and installed package are trusted.
+Targets are untrusted. Custom rule packs, CLI arguments, and the selected output directory are operator-controlled configuration. The local Python interpreter, operating system, and installed package are trusted.
 
 ## Known limitations
 
-- Python's built-in regex engine does not provide a per-match timeout. A hostile custom regex can consume excessive CPU even though input size is bounded.
+- Python's built-in regex engine does not provide a per-match timeout. Review third-party custom rules before use; a hostile configured regex can consume excessive CPU even though input size is bounded.
 - A file can change between metadata inspection and reading. The scanner detects growth beyond the limit but does not provide filesystem snapshot semantics.
 - Archive contents are not unpacked. Only visible strings in the archive container are considered.
 - File signatures are intentionally lightweight and are not a replacement for a full parser or `libmagic`.

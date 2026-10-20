@@ -66,3 +66,12 @@ def test_cli_reports_invalid_custom_rules(
 
     assert result == EXIT_ERROR
     assert "invalid JSON" in capsys.readouterr().err
+
+
+def test_cli_returns_error_when_discovery_is_incomplete(tmp_path: Path) -> None:
+    for index in range(2):
+        (tmp_path / f"{index}.txt").write_text("content", encoding="utf-8")
+
+    result = main([str(tmp_path), "--max-files", "1"])
+
+    assert result == EXIT_ERROR

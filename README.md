@@ -24,6 +24,7 @@ Simple keyword scripts are useful teaching tools, but they break down on binary 
 - Produces terminal text, deterministic JSON, and SARIF 2.1.0 reports.
 - Supports severity filtering and CI failure thresholds.
 - Uses bounded file reads, finding caps, hidden-file controls, and cycle-safe symlink traversal.
+- Caps file and directory discovery and reports incomplete scans as operational errors.
 - Runs on Python 3.9+ with no runtime dependencies.
 
 ## Quick start
@@ -97,11 +98,15 @@ docker run --rm -v "$PWD/samples:/scan:ro" sensitive-word-analyzer /scan
 | `--follow-symlinks` | Follow links with directory-cycle detection. |
 | `--max-file-size SIZE` | Limit bytes read from each file; default is `10MiB`. |
 | `--max-findings N` | Cap retained findings per file; default is `200`. |
+| `--max-files N` | Cap files discovered in one scan; default is `10000`. |
+| `--max-directories N` | Cap directories traversed in one scan; default is `10000`. |
 | `--workers N` | Set concurrent file scanners; default is `4`. |
 | `--min-severity LEVEL` | Hide findings below the selected severity. |
 | `--fail-on LEVEL` | Return exit code 1 at or above the selected severity. |
 
 Exit codes are stable: `0` means the scan completed without reaching the failure threshold, `1` means the threshold was reached, and `2` means a configuration or scanning error occurred.
+
+Custom rule packs are operator-controlled configuration. Review third-party regex rules before use; Python's regex engine has no per-match timeout.
 
 ## Rules and results
 

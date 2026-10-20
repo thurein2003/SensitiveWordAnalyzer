@@ -154,9 +154,32 @@ def test_symlink_can_be_followed(tmp_path: Path) -> None:
         {"max_file_size": 0},
         {"max_findings_per_file": 0},
         {"max_strings_bytes": 0},
+        {"max_files": 0},
+        {"max_directories": 0},
         {"workers": 0},
     ],
 )
 def test_scan_options_reject_non_positive_limits(options: Dict[str, Any]) -> None:
     with pytest.raises(ValueError):
         ScanOptions(**options)
+
+
+def test_file_discovery_limit_marks_report_incomplete(tmp_path: Path) -> None:
+    for index in range(3):
+        (tmp_path / f"{index}.txt").write_text("content", encoding="utf-8")
+
+    report = Scanner(options=ScanOptions(max_files=2)).scan(tmp_path)
+
+    assert len(report.files) == 2
+    assert report.warnings == ["file discovery stopped at the 2-file limit"]
+
+
+def test_directory_discovery_limit_marks_report_incomplete(tmp_path: Path) -> None:
+    child = tmp_path / "child"
+    child.mkdir()
+    (child / "sample.txt").write_text("content", encoding="utf-8")
+
+    report = Scanner(options=ScanOptions(max_directories=1)).scan(tmp_path)
+
+    assert report.files == []
+    assert report.warnings == ["directory discovery stopped at the 1-directory limit"]
