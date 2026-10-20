@@ -47,6 +47,34 @@ python -m pip install -e .
 swa ./path/to/file-or-directory
 ```
 
+## See a scan
+
+This example uses the included harmless sample and custom rule pack:
+
+```bash
+PYTHONPATH=src python3 -m sensitive_word_analyzer \
+  examples/demo-sample.txt \
+  --rules examples/custom_rules.json \
+  --min-severity medium
+```
+
+![Animated recording of the real command-line scan](docs/assets/swa-demo.gif)
+
+The sample contains no real indicators. The match and `example.invalid` URL are
+illustrative; a finding is a lead for review, not a verdict.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[File or directory] --> B[Bounded discovery]
+    B --> C[Read-only file analysis]
+    C --> D[Strings, hashes, entropy, signatures]
+    C --> E[Rule matches and IOC extraction]
+    D --> F[Text, JSON, or SARIF report]
+    E --> F
+```
+
 No installation is required for a source checkout:
 
 ```bash

@@ -1,0 +1,2 @@
+This is a harmless synthetic sample used in the documentation demo.
+download-example https://example.invalid/payload.bin
