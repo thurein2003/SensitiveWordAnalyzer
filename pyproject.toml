@@ -20,6 +20,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+swa = "sensitive_word_analyzer.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

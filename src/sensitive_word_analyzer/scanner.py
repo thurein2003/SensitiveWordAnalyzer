@@ -27,6 +27,34 @@ EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}\b", re.IGNORECASE
 DOMAIN = re.compile(r"\b(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,63}\b", re.IGNORECASE)
 IPV4_CANDIDATE = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
 WHITESPACE = re.compile(r"\s+")
+FILE_EXTENSIONS = {
+    "bat",
+    "bin",
+    "cfg",
+    "conf",
+    "csv",
+    "dll",
+    "doc",
+    "docx",
+    "exe",
+    "ini",
+    "jar",
+    "js",
+    "json",
+    "log",
+    "md",
+    "pdf",
+    "ps1",
+    "py",
+    "sh",
+    "so",
+    "tar",
+    "txt",
+    "xml",
+    "yaml",
+    "yml",
+    "zip",
+}
 
 
 @dataclass(frozen=True)
@@ -282,7 +310,13 @@ class Scanner:
     def _extract_indicators(text: str) -> Dict[str, List[str]]:
         urls = sorted({value.rstrip(".,);]") for value in URL.findall(text)})[:100]
         emails = sorted(set(EMAIL.findall(text)))[:100]
-        domains = sorted(set(DOMAIN.findall(text)))[:100]
+        domains = sorted(
+            {
+                value
+                for value in DOMAIN.findall(text)
+                if value.rsplit(".", 1)[-1].lower() not in FILE_EXTENSIONS
+            }
+        )[:100]
         ips: List[str] = []
         for candidate in sorted(set(IPV4_CANDIDATE.findall(text))):
             try:
