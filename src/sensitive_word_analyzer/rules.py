@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Pattern, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Pattern, Tuple
 
 from .models import Severity
 
@@ -53,16 +53,14 @@ class RuleSet:
 
         self.name = name
         self.rules = rule_list
-        self.compiled = tuple(
-            compiled
-            for rule in rule_list
-            for compiled in self._compile(rule)
-        )
+        self.compiled = tuple(compiled for rule in rule_list for compiled in self._compile(rule))
 
     @classmethod
     def default(cls) -> "RuleSet":
-        rule_text = resources.read_text(
-            "sensitive_word_analyzer.data", "default_rules.json", encoding="utf-8"
+        rule_text = (
+            resources.files("sensitive_word_analyzer.data")
+            .joinpath("default_rules.json")
+            .read_text(encoding="utf-8")
         )
         return cls.from_mapping(json.loads(rule_text))
 
@@ -136,6 +134,9 @@ class RuleSet:
 
     @staticmethod
     def _parse_pattern(payload: Any, location: str) -> PatternSpec:
+        expression: Any
+        kind: Any
+        case_sensitive: Any
         if isinstance(payload, str):
             expression = payload
             kind = "literal"
@@ -162,9 +163,7 @@ class RuleSet:
         compiled: List[CompiledPattern] = []
         for pattern in rule.patterns:
             source = (
-                re.escape(pattern.expression)
-                if pattern.kind == "literal"
-                else pattern.expression
+                re.escape(pattern.expression) if pattern.kind == "literal" else pattern.expression
             )
             flags = 0 if pattern.case_sensitive else re.IGNORECASE
             try:

@@ -64,9 +64,7 @@ def render_text(report: ScanReport) -> str:
             lines.append(f"  {_safe(finding.snippet)}")
 
         for indicator_type, values in file.indicators.items():
-            lines.append(
-                f"IOCs {indicator_type}: " + ", ".join(_safe(value) for value in values)
-            )
+            lines.append(f"IOCs {indicator_type}: " + ", ".join(_safe(value) for value in values))
 
     return "\n".join(lines)
 
@@ -92,9 +90,7 @@ def _sarif_location(path: str, finding: Finding) -> Dict[str, Any]:
 
 
 def render_sarif(report: ScanReport, rules: RuleSet) -> str:
-    used_rule_ids = {
-        finding.rule_id for file in report.files for finding in file.findings
-    }
+    used_rule_ids = {finding.rule_id for file in report.files for finding in file.findings}
     sarif_rules = [
         {
             "id": rule.rule_id,
@@ -114,9 +110,7 @@ def render_sarif(report: ScanReport, rules: RuleSet) -> str:
         {
             "ruleId": finding.rule_id,
             "level": _sarif_level(finding.severity),
-            "message": {
-                "text": f"{finding.description} Matched: {_safe(finding.match)}"
-            },
+            "message": {"text": f"{finding.description} Matched: {_safe(finding.match)}"},
             "locations": [_sarif_location(file.path, finding)],
             "properties": {
                 "category": finding.category,
@@ -136,9 +130,7 @@ def render_sarif(report: ScanReport, rules: RuleSet) -> str:
                 "tool": {
                     "driver": {
                         "name": "Sensitive Word Analyzer",
-                        "informationUri": (
-                            "https://github.com/thurein2003/SensitiveWordAnalyzer"
-                        ),
+                        "informationUri": ("https://github.com/thurein2003/SensitiveWordAnalyzer"),
                         "rules": sarif_rules,
                         "version": "1.0.0",
                     }
@@ -157,12 +149,10 @@ def render_sarif(report: ScanReport, rules: RuleSet) -> str:
 
 
 def render_report(report: ScanReport, output_format: str, rules: RuleSet) -> str:
-    renderers = {
-        "text": lambda: render_text(report),
-        "json": lambda: render_json(report),
-        "sarif": lambda: render_sarif(report, rules),
-    }
-    try:
-        return renderers[output_format]()
-    except KeyError as exc:
-        raise ValueError(f"unsupported report format: {output_format}") from exc
+    if output_format == "text":
+        return render_text(report)
+    if output_format == "json":
+        return render_json(report)
+    if output_format == "sarif":
+        return render_sarif(report, rules)
+    raise ValueError(f"unsupported report format: {output_format}")

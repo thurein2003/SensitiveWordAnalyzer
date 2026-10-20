@@ -2,7 +2,7 @@
 
 from .models import FileReport, Finding, ScanReport, Severity
 from .rules import RuleSet
-from .scanner import ScanOptions, Scanner
+from .scanner import Scanner, ScanOptions
 
 __all__ = [
     "FileReport",
