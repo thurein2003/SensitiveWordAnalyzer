@@ -18,7 +18,6 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from .models import FileReport, Finding, ScanReport, Severity
 from .rules import RuleSet
 
-
 ASCII_STRING = re.compile(rb"[\x09\x20-\x7e]{4,}")
 UTF16_LE_STRING = re.compile(rb"(?:[\x20-\x7e]\x00){4,}")
 UTF16_BE_STRING = re.compile(rb"(?:\x00[\x20-\x7e]){4,}")
@@ -280,9 +279,7 @@ class Scanner:
                         continue
                     seen.add(key)
                     line = (
-                        text.count("\n", 0, match.start()) + 1
-                        if source == "decoded-text"
-                        else None
+                        text.count("\n", 0, match.start()) + 1 if source == "decoded-text" else None
                     )
                     findings.append(
                         Finding(

@@ -91,7 +91,9 @@ class ScanReport:
     @property
     def highest_severity(self) -> Optional[Severity]:
         severities = [finding.severity for file in self.files for finding in file.findings]
-        return max(severities, key=lambda severity: severity.rank, default=None)
+        if not severities:
+            return None
+        return max(severities, key=lambda severity: severity.rank)
 
     def to_dict(self) -> Dict[str, Any]:
         highest = self.highest_severity

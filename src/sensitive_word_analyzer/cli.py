@@ -11,8 +11,7 @@ from . import __version__
 from .models import Severity
 from .reporters import render_report
 from .rules import RuleSet, RuleValidationError
-from .scanner import ScanOptions, Scanner
-
+from .scanner import Scanner, ScanOptions
 
 EXIT_CLEAN = 0
 EXIT_FINDINGS = 1

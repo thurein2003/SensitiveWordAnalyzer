@@ -20,6 +20,15 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+dev = [
+  "build>=1.2",
+  "mypy>=1.10",
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "ruff>=0.6",
+]
+
 [project.scripts]
 swa = "sensitive_word_analyzer.cli:main"
 
@@ -28,3 +37,34 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 sensitive_word_analyzer = ["data/*.json"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["sensitive_word_analyzer"]
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+]
+fail_under = 90
+show_missing = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "SIM", "UP"]
+ignore = ["UP006", "UP007", "UP035", "UP037"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+warn_unreachable = true
