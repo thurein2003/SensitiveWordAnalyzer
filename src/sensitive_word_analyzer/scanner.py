@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from urllib.parse import urlsplit
 
 from .models import FileReport, Finding, ScanReport, Severity
 from .rules import RuleSet
@@ -53,6 +54,43 @@ FILE_EXTENSIONS = {
     "yaml",
     "yml",
     "zip",
+}
+LIKELY_TLDS = {
+    "app",
+    "au",
+    "biz",
+    "br",
+    "ca",
+    "ch",
+    "cloud",
+    "cn",
+    "co",
+    "com",
+    "de",
+    "dev",
+    "edu",
+    "es",
+    "eu",
+    "fr",
+    "gov",
+    "in",
+    "info",
+    "io",
+    "it",
+    "jp",
+    "me",
+    "mil",
+    "net",
+    "nl",
+    "online",
+    "org",
+    "ru",
+    "site",
+    "tech",
+    "top",
+    "uk",
+    "us",
+    "xyz",
 }
 
 
@@ -307,13 +345,18 @@ class Scanner:
     def _extract_indicators(text: str) -> Dict[str, List[str]]:
         urls = sorted({value.rstrip(".,);]") for value in URL.findall(text)})[:100]
         emails = sorted(set(EMAIL.findall(text)))[:100]
-        domains = sorted(
-            {
-                value
-                for value in DOMAIN.findall(text)
-                if value.rsplit(".", 1)[-1].lower() not in FILE_EXTENSIONS
-            }
-        )[:100]
+        domains = {
+            value.lower()
+            for value in DOMAIN.findall(text)
+            if value.rsplit(".", 1)[-1].lower() in LIKELY_TLDS
+            and value.rsplit(".", 1)[-1].lower() not in FILE_EXTENSIONS
+        }
+        domains.update(email.rsplit("@", 1)[-1].lower() for email in emails)
+        domains.update(
+            hostname.lower()
+            for url in urls
+            if (hostname := Scanner._url_hostname(url)) and "." in hostname
+        )
         ips: List[str] = []
         for candidate in sorted(set(IPV4_CANDIDATE.findall(text))):
             try:
@@ -325,6 +368,13 @@ class Scanner:
             "urls": urls,
             "ipv4": ips[:100],
             "emails": emails,
-            "domains": domains,
+            "domains": sorted(domains)[:100],
         }
         return {kind: values for kind, values in indicators.items() if values}
+
+    @staticmethod
+    def _url_hostname(url: str) -> Optional[str]:
+        try:
+            return urlsplit(url).hostname
+        except ValueError:
+            return None

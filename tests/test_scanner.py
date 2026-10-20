@@ -101,6 +101,29 @@ def test_invalid_ipv4_candidate_is_not_reported(tmp_path: Path) -> None:
     assert Scanner().scan(sample).files[0].indicators == {}
 
 
+def test_domains_require_context_or_likely_public_suffix(tmp_path: Path) -> None:
+    sample = tmp_path / "sample.txt"
+    sample.write_text(
+        "example.suspicious AnalyzedFile.txt user@corp.internal "
+        "https://control.unusual/path public.example.com",
+        encoding="utf-8",
+    )
+
+    domains = Scanner().scan(sample).files[0].indicators["domains"]
+
+    assert domains == ["control.unusual", "corp.internal", "public.example.com"]
+
+
+def test_malformed_url_does_not_abort_scan(tmp_path: Path) -> None:
+    sample = tmp_path / "sample.txt"
+    sample.write_text("http://[invalid", encoding="utf-8")
+
+    file = Scanner().scan(sample).files[0]
+
+    assert file.error is None
+    assert file.indicators["urls"] == ["http://[invalid"]
+
+
 def test_symlink_is_skipped_by_default(tmp_path: Path) -> None:
     target = tmp_path / "target.txt"
     link = tmp_path / "link.txt"

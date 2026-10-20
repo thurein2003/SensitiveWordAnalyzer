@@ -1,0 +1,34 @@
+name: Detection rule proposal
+description: Propose an explainable static-analysis signal
+title: "[Rule]: "
+labels: [detection]
+body:
+  - type: input
+    id: behavior
+    attributes:
+      label: Behavior
+      description: Name the behavior this rule should identify.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and rationale
+      description: Explain why the signal is useful and cite public technical references.
+    validations:
+      required: true
+  - type: textarea
+    id: pattern
+    attributes:
+      label: Candidate pattern
+      description: Provide a literal or bounded regex with harmless sample text.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: false-positives
+    attributes:
+      label: False-positive analysis
+      description: List likely benign matches and proposed safeguards.
+    validations:
+      required: true

@@ -1,53 +1,125 @@
-# **Sensitive Words Detector**
-![image](https://github.com/user-attachments/assets/94af96da-2faa-429a-b976-c7be19b640ab)
+# Sensitive Word Analyzer
 
-A **Bash script** designed to automate the process of detecting sensitive words in files or directories, primarily for malware analysis. This tool helps identify potential indicators of compromise by scanning for predefined sensitive words.
+[![CI](https://github.com/thurein2003/SensitiveWordAnalyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/thurein2003/SensitiveWordAnalyzer/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/thurein2003/SensitiveWordAnalyzer/actions/workflows/codeql.yml/badge.svg)](https://github.com/thurein2003/SensitiveWordAnalyzer/actions/workflows/codeql.yml)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-3776ab.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2ea44f.svg)](LICENSE)
 
----
+Sensitive Word Analyzer (`swa`) is a defensive, read-only static triage tool for suspicious files and directory trees. It combines contextual rules, string extraction, file hashes, entropy measurement, file signatures, and indicator-of-compromise (IOC) extraction in one dependency-free Python engine.
 
-## **Features**
-- Scans for sensitive words in a single file or all files within a directory.
-- Outputs results to a report file (`AnalyzedFile.txt`).
-- Highlights matches in the terminal using `grep`.
-- Detects commonly used sensitive terms in malware analysis, such as:
-  - `password`
-  - `keylogger`
-  - `shellcode`
-  - `encryption`
-  - `payload`
-  - `C2`
-  - `trojan`
-  - `backdoor`
+It is designed for analyst triage and CI checks. It does not execute, import, emulate, decrypt, or modify the files it scans.
 
----
+## Why this project exists
 
-## **Prerequisites**
-- A Linux-based operating system with:
-  - **Bash shell** (default on most Linux distributions).
-  - `grep` command installed (comes pre-installed on most systems).
+Simple keyword scripts are useful teaching tools, but they break down on binary files, large directory trees, automation pipelines, and untrusted input. `swa` adds bounded reads, validated rule packs, symlink controls, machine-readable output, and tested failure semantics while keeping the workflow straightforward.
 
----
+## Features
 
-## **Usage**
-1. Clone this repository to your local machine:
-   ```bash
-   git clone https://github.com/yourusername/sensitive-words-detector.git
-   cd sensitive-words-detector
+- Recursively scans text and binary files without executing them.
+- Extracts printable ASCII, UTF-16 LE, and UTF-16 BE strings from binaries.
+- Applies validated literal and regular-expression rules with severity and category metadata.
+- Ships with rules for credential access, execution, persistence, evasion, command and control, collection, and impact signals.
+- Calculates MD5, SHA-1, SHA-256, Shannon entropy, and lightweight file signatures.
+- Extracts URLs, IPv4 addresses, email addresses, and likely domains.
+- Produces terminal text, deterministic JSON, and SARIF 2.1.0 reports.
+- Supports severity filtering and CI failure thresholds.
+- Uses bounded file reads, finding caps, hidden-file controls, and cycle-safe symlink traversal.
+- Runs on Python 3.9+ with no runtime dependencies.
 
-2. Make the script executable:
+## Quick start
+
+Install from GitHub with `pipx`:
 
 ```bash
-Copy code
-chmod +x sensitive_words_detector.sh
+pipx install git+https://github.com/thurein2003/SensitiveWordAnalyzer.git
+swa ./samples
 ```
-3. Run the script:
-```
-bash
-./sensitive_words_detector.sh
-```
-4. Enter the file or directory path when prompted:
-- For a file, enter the file path (e.g., example_file.txt).
-- For a directory, enter the directory path (e.g., ./malware_samples).
 
-  ## View the results in AnalyzedFile.txt.
+Or use a virtual environment from a clone:
 
+```bash
+git clone https://github.com/thurein2003/SensitiveWordAnalyzer.git
+cd SensitiveWordAnalyzer
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
+swa ./path/to/file-or-directory
+```
+
+No installation is required for a source checkout:
+
+```bash
+PYTHONPATH=src python -m sensitive_word_analyzer ./path/to/target
+```
+
+## Common workflows
+
+Scan a directory and show high or critical findings:
+
+```bash
+swa ./quarantine --min-severity high
+```
+
+Write a JSON report and fail when a high-severity signal is present:
+
+```bash
+swa ./quarantine --format json --output reports/scan.json --fail-on high
+```
+
+Create SARIF for GitHub code scanning or another compatible platform:
+
+```bash
+swa ./quarantine --format sarif --output reports/scan.sarif
+```
+
+Use a custom rule pack and a lower file-size ceiling:
+
+```bash
+swa ./incoming --rules rules/team-rules.json --max-file-size 2MiB
+```
+
+Run in a container with the target mounted read-only:
+
+```bash
+docker build -t sensitive-word-analyzer .
+docker run --rm -v "$PWD/samples:/scan:ro" sensitive-word-analyzer /scan
+```
+
+## CLI reference
+
+| Option | Purpose |
+| --- | --- |
+| `--rules PATH` | Load a custom JSON rule pack. |
+| `--format text\|json\|sarif` | Select the output format. |
+| `-o, --output PATH` | Write the report to a file. |
+| `--no-recursive` | Scan only direct children of a directory. |
+| `--include-hidden` | Include dotfiles and hidden directories. |
+| `--follow-symlinks` | Follow links with directory-cycle detection. |
+| `--max-file-size SIZE` | Limit bytes read from each file; default is `10MiB`. |
+| `--max-findings N` | Cap retained findings per file; default is `200`. |
+| `--workers N` | Set concurrent file scanners; default is `4`. |
+| `--min-severity LEVEL` | Hide findings below the selected severity. |
+| `--fail-on LEVEL` | Return exit code 1 at or above the selected severity. |
+
+Exit codes are stable: `0` means the scan completed without reaching the failure threshold, `1` means the threshold was reached, and `2` means a configuration or scanning error occurred.
+
+## Rules and results
+
+Rules are detection signals, not verdicts. A match should be investigated alongside file origin, execution context, signer reputation, sandbox results, and other telemetry. The default rules intentionally favor explainable evidence over opaque scoring.
+
+See [Rule authoring](docs/RULES.md) for the JSON schema and [Architecture](docs/ARCHITECTURE.md) for the analysis pipeline. The [Security model](docs/SECURITY_MODEL.md) documents trust boundaries, resource limits, and known limitations.
+
+## Development
+
+```bash
+python -m pip install -e '.[dev]'
+make check
+```
+
+The repository enforces Ruff formatting and linting, strict mypy checks, more than 50 focused tests, and at least 90% branch coverage. See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+## Responsible use
+
+Use this project only on files and systems you own or are authorized to analyze. Do not treat a match as proof that a file is malicious, and do not submit confidential samples to public issues.
+
+Security concerns about this project should follow [SECURITY.md](SECURITY.md).
