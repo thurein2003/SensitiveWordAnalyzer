@@ -1,0 +1,129 @@
+{
+  "name": "swa-default",
+  "version": 1,
+  "rules": [
+    {
+      "id": "credential.private-key",
+      "name": "Embedded private key",
+      "description": "A PEM private-key header is present in the file.",
+      "category": "credential-access",
+      "severity": "critical",
+      "patterns": [
+        "-----BEGIN PRIVATE KEY-----",
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "-----BEGIN OPENSSH PRIVATE KEY-----"
+      ]
+    },
+    {
+      "id": "credential.harvesting",
+      "name": "Credential harvesting language",
+      "description": "Text suggests collection or theft of authentication material.",
+      "category": "credential-access",
+      "severity": "high",
+      "patterns": [
+        {"kind": "regex", "expression": "(?:steal|dump|harvest|grab)[-_ ]?(?:passwords?|credentials?|cookies?|tokens?)"},
+        {"kind": "regex", "expression": "(?:password|credential)[-_ ]?(?:stealer|dumper|harvester)"}
+      ]
+    },
+    {
+      "id": "collection.keylogging",
+      "name": "Keylogging behavior",
+      "description": "Text references keyboard capture or keylogging behavior.",
+      "category": "collection",
+      "severity": "high",
+      "patterns": [
+        "keylogger",
+        "GetAsyncKeyState",
+        {"kind": "regex", "expression": "(?:capture|record|hook)[-_ ]?(?:key(?:stroke)?s?|keyboard)"}
+      ]
+    },
+    {
+      "id": "execution.shell-command",
+      "name": "Shell command execution",
+      "description": "Text contains an API or construct commonly used to launch commands.",
+      "category": "execution",
+      "severity": "medium",
+      "patterns": [
+        "CreateProcessA",
+        "CreateProcessW",
+        "ShellExecuteA",
+        "ShellExecuteW",
+        {"kind": "regex", "expression": "(?:powershell(?:[.]exe)?|cmd[.]exe|/bin/(?:ba)?sh)\\s+(?:-[A-Za-z]+\\s+)*"}
+      ]
+    },
+    {
+      "id": "execution.download-cradle",
+      "name": "Download-and-execute pattern",
+      "description": "Text resembles a command that downloads remote content for execution.",
+      "category": "execution",
+      "severity": "high",
+      "patterns": [
+        "DownloadString(",
+        "Invoke-WebRequest",
+        {"kind": "regex", "expression": "(?:curl|wget)\\s+[^\\r\\n]{0,180}(?:\\||&&|;)\\s*(?:sh|bash|python|powershell)"}
+      ]
+    },
+    {
+      "id": "persistence.autostart",
+      "name": "Autostart persistence",
+      "description": "Text references a common operating-system autostart location or mechanism.",
+      "category": "persistence",
+      "severity": "high",
+      "patterns": [
+        "CurrentVersion\\Run",
+        "CurrentVersion\\RunOnce",
+        "schtasks /create",
+        "crontab -e",
+        "LaunchAgents"
+      ]
+    },
+    {
+      "id": "defense-evasion.analysis",
+      "name": "Analysis evasion",
+      "description": "Text references anti-debugging, anti-VM, or sandbox-evasion behavior.",
+      "category": "defense-evasion",
+      "severity": "high",
+      "patterns": [
+        "IsDebuggerPresent",
+        "CheckRemoteDebuggerPresent",
+        {"kind": "regex", "expression": "anti[-_ ]?(?:debug|vm|sandbox|analysis)"},
+        {"kind": "regex", "expression": "(?:detect|check)[-_ ]?(?:vmware|virtualbox|sandbox)"}
+      ]
+    },
+    {
+      "id": "obfuscation.encoded-execution",
+      "name": "Encoded or obfuscated execution",
+      "description": "Text contains a construct frequently used to decode content at runtime.",
+      "category": "defense-evasion",
+      "severity": "medium",
+      "patterns": [
+        "FromBase64String",
+        {"kind": "regex", "expression": "(?:eval|exec)\\s*\\(\\s*(?:atob|base64\\.(?:b64decode|decodebytes))"},
+        {"kind": "regex", "expression": "powershell(?:[.]exe)?[^\\r\\n]{0,80}-(?:e|enc|encodedcommand)\\s+"}
+      ]
+    },
+    {
+      "id": "command-control.beacon",
+      "name": "Command-and-control language",
+      "description": "Text references command-and-control or beaconing behavior.",
+      "category": "command-and-control",
+      "severity": "high",
+      "patterns": [
+        {"kind": "regex", "expression": "(?:command[-_ ]and[-_ ]control|c2[-_ ]server|callback[-_ ]server)"},
+        {"kind": "regex", "expression": "(?:beacon|phone[-_ ]home)[-_ ]?(?:interval|jitter|url|host)?"}
+      ]
+    },
+    {
+      "id": "impact.ransomware",
+      "name": "Ransomware behavior",
+      "description": "Text references file encryption paired with ransom or recovery inhibition.",
+      "category": "impact",
+      "severity": "critical",
+      "patterns": [
+        {"kind": "regex", "expression": "(?:encrypt(?:ed|ing)?[-_ ]files?|file[-_ ]encryption).{0,80}(?:ransom|bitcoin|payment|decrypt)"},
+        "vssadmin delete shadows",
+        "wbadmin delete catalog"
+      ]
+    }
+  ]
+}
