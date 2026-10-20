@@ -1,0 +1,20 @@
+{
+  "name": "example-rules",
+  "version": 1,
+  "rules": [
+    {
+      "id": "example.suspicious-download",
+      "name": "Suspicious scripted download",
+      "description": "A harmless example rule for a scripted download command.",
+      "category": "execution",
+      "severity": "medium",
+      "patterns": [
+        {
+          "kind": "regex",
+          "expression": "download[-_ ]example\\s+https?://",
+          "case_sensitive": false
+        }
+      ]
+    }
+  ]
+}
